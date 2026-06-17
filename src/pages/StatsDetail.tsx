@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   PieChart,
@@ -36,6 +36,10 @@ function getStartDate(range: TimeRange): Date {
 const getTypeLabel = (t: string) =>
   t === 'half_monthly' ? '半月保' : t === 'quarterly' ? '季保' : t === 'repair' ? '维修' : t
 
+function monthLabel(date: Date): string {
+  return `${date.getMonth() + 1}月`
+}
+
 function StatCard({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <div className="rounded-card bg-white p-3 shadow-sm text-center">
@@ -57,20 +61,18 @@ export default function StatsDetail() {
   const checkinRecords = useStore((s) => s.checkinRecords)
   const stat = performanceStats.find((p) => p.workerId === workerId)
 
-  if (!stat) {
-    return (
-      <div className="min-h-screen bg-surface-50">
-        <PageHeader title="维保工详情" showBack />
-        <div className="pt-16 text-center text-sm text-gray-400">未找到数据</div>
-      </div>
-    )
-  }
+  const startDate = useMemo(() => getStartDate(range), [range])
 
-  const startDate = getStartDate(range)
-  const filteredDispatch = dispatchOrders.filter((d) => {
-    if (d.assigneeId !== workerId) return false
-    return new Date(d.completedAt || d.createdAt).getTime() >= startDate.getTime()
-  })
+  const workerDispatch = useMemo(() => {
+    return dispatchOrders.filter((d) => d.assigneeId === workerId)
+  }, [dispatchOrders, workerId])
+
+  const filteredDispatch = useMemo(() => {
+    return workerDispatch.filter((d) =>
+      new Date(d.completedAt || d.createdAt).getTime() >= startDate.getTime()
+    )
+  }, [workerDispatch, startDate])
+
   const completedCount = filteredDispatch.filter((d) => d.status === 'completed').length
   const totalCount = filteredDispatch.filter((d) => d.status !== 'pending').length
   const rate = totalCount > 0 ? Number(((completedCount / totalCount) * 100).toFixed(1)) : 0
@@ -79,11 +81,39 @@ export default function StatsDetail() {
     { name: '未完成', value: Number((100 - rate).toFixed(1)) },
   ]
 
-  const filteredRescue = rescueOrders.filter((r) => {
-    if (r.assigneeId !== workerId) return false
-    if (!['arrived', 'rescued', 'closed'].includes(r.status)) return false
-    return new Date(r.createdAt).getTime() >= startDate.getTime()
-  })
+  const trend = useMemo(() => {
+    const months: { label: string; dateKey: string; total: number; completed: number }[] = []
+    const cursor = new Date(startDate)
+    while (cursor <= NOW) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`
+      months.push({ label: monthLabel(cursor), dateKey: key, total: 0, completed: 0 })
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+
+    workerDispatch.forEach((d) => {
+      const date = new Date(d.completedAt || d.createdAt)
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      const m = months.find((x) => x.dateKey === key)
+      if (!m) return
+      if (d.status !== 'pending') m.total += 1
+      if (d.status === 'completed') m.completed += 1
+    })
+
+    return months.map((m) => ({
+      month: m.label,
+      rate: m.total > 0 ? Number(((m.completed / m.total) * 100).toFixed(1)) : 0,
+      completed: m.completed,
+      total: m.total,
+    }))
+  }, [workerDispatch, startDate])
+
+  const filteredRescue = useMemo(() => {
+    return rescueOrders.filter((r) => {
+      if (r.assigneeId !== workerId) return false
+      if (!['arrived', 'rescued', 'closed'].includes(r.status)) return false
+      return new Date(r.createdAt).getTime() >= startDate.getTime()
+    })
+  }, [rescueOrders, workerId, startDate])
 
   const responseMinutes = filteredRescue
     .map((r) => {
@@ -100,16 +130,19 @@ export default function StatsDetail() {
     ? Math.min(100, Math.max(0, Math.round((qualifiedCount / responseMinutes.length) * 100))) + '%'
     : '—'
 
-  const trend = (() => {
-    if (range === 'month') return stat.monthlyTrend.slice(-1)
-    if (range === 'quarter') return stat.monthlyTrend.slice(-3)
-    return stat.monthlyTrend
-  })()
-
   const recentOrders = filteredDispatch
     .filter((d) => d.status === 'completed')
     .sort((a, b) => new Date(b.completedAt || '').getTime() - new Date(a.completedAt || '').getTime())
     .slice(0, 5)
+
+  if (!stat) {
+    return (
+      <div className="min-h-screen bg-surface-50">
+        <PageHeader title="维保工详情" showBack />
+        <div className="pt-16 text-center text-sm text-gray-400">未找到数据</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-surface-50">
@@ -159,6 +192,31 @@ export default function StatsDetail() {
 
         <div className="rounded-card bg-white p-4 shadow-sm">
           <div className="flex items-center gap-1.5 mb-3">
+            <ClipboardCheck size={14} className="text-primary-500" />
+            <p className="text-sm font-semibold text-gray-800">月度完成趋势</p>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={trend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
+              <Tooltip
+                formatter={(value: number, name: string) => [
+                  name === 'rate' ? `${value}%` : value,
+                  name === 'rate' ? '完成率' : name,
+                ]}
+                labelFormatter={(label) => `${label}`}
+              />
+              <Bar dataKey="rate" fill="#1B5E8C" radius={[4, 4, 0, 0]} name="完成率" />
+            </BarChart>
+          </ResponsiveContainer>
+          {trend.length > 0 && trend.every((t) => t.total === 0) && (
+            <p className="text-center text-xs text-gray-400 mt-2">所选时段无派工记录</p>
+          )}
+        </div>
+
+        <div className="rounded-card bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-3">
             <Siren size={14} className="text-danger-500" />
             <p className="text-sm font-semibold text-gray-800">救援响应</p>
           </div>
@@ -175,22 +233,6 @@ export default function StatsDetail() {
               <p className="text-xs text-gray-500 mt-1">30分钟达标率</p>
             </div>
           </div>
-        </div>
-
-        <div className="rounded-card bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-1.5 mb-3">
-            <ClipboardCheck size={14} className="text-primary-500" />
-            <p className="text-sm font-semibold text-gray-800">月度完成趋势</p>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={trend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
-              <Tooltip />
-              <Bar dataKey="rate" fill="#1B5E8C" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
         </div>
 
         <div className="rounded-card bg-white shadow-sm">
@@ -248,8 +290,9 @@ export default function StatsDetail() {
             <div className="px-4 pb-4 space-y-1 text-[11px] text-gray-400 leading-relaxed">
               <p>· 数据范围按所选时间窗口统计</p>
               <p>· 本月以当月1日起算；近N个月以当前月往前 N-1 个月起算</p>
-              <p>· 总工单 = 已接受+进行中+已完成</p>
-              <p>· 救援响应 = 出发→到场的分钟数</p>
+              <p>· 总工单 = 已接受 + 进行中 + 已完成（不含待派工）</p>
+              <p>· 趋势图按月统计当月完成率，与列表口径一致</p>
+              <p>· 救援响应 = 出发 → 到场的分钟数</p>
             </div>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type {
   Elevator,
+  ElevatorStatusEvent,
   MaintenanceContract,
   DispatchOrder,
   CheckinRecord,
@@ -51,8 +52,9 @@ interface StoreState extends PersistedState {
   login: (phone: string, password: string) => boolean
   logout: () => void
   updateElevatorStatus: (id: string, status: Elevator['status']) => void
-  disableElevator: (id: string, reason: string) => void
-  enableElevator: (id: string) => void
+  disableElevator: (id: string, reason: string, operatorName?: string) => void
+  enableElevator: (id: string, operatorName?: string) => void
+  addElevatorStatusEvent: (event: ElevatorStatusEvent) => void
   acceptDispatch: (id: string) => void
   completeDispatch: (id: string) => void
   updateMaintenanceItem: (dispatchId: string, itemId: string, checked: boolean, remark?: string) => void
@@ -136,24 +138,54 @@ export const useStore = create<StoreState>()((set) => ({
       return { elevators: next.elevators }
     }),
 
-  disableElevator: (id, reason) =>
+  disableElevator: (id, reason, operatorName) =>
     set((state) => {
+      const event: ElevatorStatusEvent = {
+        id: `ev-${Date.now()}`,
+        elevatorId: id,
+        type: 'disable',
+        time: new Date().toISOString(),
+        operatorName: operatorName || state.currentUser?.name || '系统',
+        operatorId: state.currentUser?.id,
+        reason,
+      }
       const next = {
         ...state,
         elevators: state.elevators.map((e) =>
-          e.id === id ? { ...e, status: 'disabled' as const, disabledReason: reason, disabledAt: new Date().toISOString() } : e
+          e.id === id ? { ...e, status: 'disabled' as const, disabledReason: reason, disabledAt: event.time, statusHistory: [...e.statusHistory, event] } : e
         ),
       }
       persistState(next)
       return { elevators: next.elevators }
     }),
 
-  enableElevator: (id) =>
+  enableElevator: (id, operatorName) =>
+    set((state) => {
+      const event: ElevatorStatusEvent = {
+        id: `ev-${Date.now()}`,
+        elevatorId: id,
+        type: 'enable',
+        time: new Date().toISOString(),
+        operatorName: operatorName || state.currentUser?.name || '系统',
+        operatorId: state.currentUser?.id,
+        reason: '恢复启用',
+      }
+      const next = {
+        ...state,
+        elevators: state.elevators.map((e) =>
+          e.id === id ? { ...e, status: 'normal' as const, statusHistory: [...e.statusHistory, event] } : e
+        ),
+      }
+      persistState(next)
+      return { elevators: next.elevators }
+    }),
+
+  addElevatorStatusEvent: (event) =>
     set((state) => {
       const next = {
         ...state,
         elevators: state.elevators.map((e) =>
-          e.id === id ? { ...e, status: 'normal' as const, disabledReason: undefined, disabledAt: undefined } : e
+          e.id === event.elevatorId ? { ...e, statusHistory: [...e.statusHistory, event] } : e
         ),
       }
       persistState(next)

@@ -1,3 +1,14 @@
+export interface ElevatorStatusEvent {
+  id: string
+  elevatorId: string
+  type: 'disable' | 'enable' | 'fault' | 'repair'
+  time: string
+  operatorId?: string
+  operatorName: string
+  reason: string
+  remark?: string
+}
+
 export interface Elevator {
   id: string
   code: string
@@ -13,6 +24,7 @@ export interface Elevator {
   disabledReason?: string
   disabledAt?: string
   qrCode: string
+  statusHistory: ElevatorStatusEvent[]
 }
 
 export interface MaintenanceContract {
@@ -121,10 +133,15 @@ export interface InspectionSchedule {
   elevatorId: string
   type: "annual" | "periodic"
   scheduledDate: string
+  inspectionDate?: string
   status: "pending" | "overdue" | "completed"
   result?: "pass" | "fail"
+  inspectorName?: string
+  inspectorOrg?: string
   nextDate?: string
   reportAttachment?: string
+  remark?: string
+  photos?: string[]
 }
 
 export interface Certificate {

@@ -20,6 +20,7 @@ import RescueDetail from "@/pages/RescueDetail";
 import RescueRecord from "@/pages/RescueRecord";
 import InspectionList from "@/pages/InspectionList";
 import InspectionNew from "@/pages/InspectionNew";
+import InspectionDetail from "@/pages/InspectionDetail";
 import Stats from "@/pages/Stats";
 import StatsDetail from "@/pages/StatsDetail";
 import Profile from "@/pages/Profile";
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/rescue/:id/record" element={<RescueRecord />} />
           <Route path="/inspection" element={<InspectionList />} />
           <Route path="/inspection/new" element={<InspectionNew />} />
+          <Route path="/inspection/:id" element={<InspectionDetail />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/stats/:workerId" element={<StatsDetail />} />
           <Route path="/profile" element={<Profile />} />

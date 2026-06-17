@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, List, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, List, Calendar, ChevronLeft, ChevronRight, ChevronRight as ChevronRightIcon } from 'lucide-react'
 import { useStore } from '@/store'
 import PageHeader from '@/components/PageHeader'
 import StatusBadge from '@/components/StatusBadge'
@@ -191,8 +191,9 @@ function InspectionCard({
   elevator,
 }: {
   inspection: InspectionSchedule
-  elevator?: { code: string; address: string }
+  elevator?: { id: string; code: string; address: string }
 }) {
+  const navigate = useNavigate()
   const borderClass =
     inspection.status === 'overdue'
       ? 'border-l-4 border-l-danger-500'
@@ -201,24 +202,38 @@ function InspectionCard({
         : ''
 
   return (
-    <div className={`rounded-card bg-white p-4 shadow-sm ${borderClass}`}>
+    <button
+      onClick={() => navigate(`/inspection/${inspection.id}`)}
+      className={`w-full text-left rounded-card bg-white p-4 shadow-sm ${borderClass} hover:bg-gray-50`}
+    >
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-800">
           {elevator?.code ?? '-'}
         </span>
-        <StatusBadge status={inspection.status} type="inspection" />
+        <div className="flex items-center gap-1">
+          <StatusBadge status={inspection.status} type="inspection" />
+          <ChevronRightIcon size={14} className="text-gray-300" />
+        </div>
       </div>
-      <p className="mt-1 text-xs text-gray-500">{elevator?.address ?? '-'}</p>
+      <p className="mt-1 text-xs text-gray-500 line-clamp-1">{elevator?.address ?? '-'}</p>
 
       <div className="mt-2 flex items-center gap-2">
         <span className="rounded bg-primary-50 px-1.5 py-0.5 text-xs font-medium text-primary-500">
           {typeLabels[inspection.type] ?? inspection.type}
         </span>
+        {inspection.result && (
+          <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+            inspection.result === 'pass' ? 'bg-success-50 text-success-600' : 'bg-danger-50 text-danger-600'
+          }`}>
+            {inspection.result === 'pass' ? '合格' : '不合格'}
+          </span>
+        )}
       </div>
 
       <div className="mt-2 text-xs text-gray-400">
         计划日期：{inspection.scheduledDate}
+        {inspection.inspectionDate && ` · 实际：${inspection.inspectionDate}`}
       </div>
-    </div>
+    </button>
   )
 }
