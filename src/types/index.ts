@@ -147,6 +147,11 @@ export interface User {
   certificates: Certificate[]
 }
 
+export interface MonthlyTrendItem {
+  month: string
+  rate: number
+}
+
 export interface PerformanceStats {
   workerId: string
   workerName: string
@@ -155,6 +160,7 @@ export interface PerformanceStats {
   completionRate: number
   avgResponseMinutes: number
   rescueCount: number
+  monthlyTrend: MonthlyTrendItem[]
 }
 
 export interface Notification {
