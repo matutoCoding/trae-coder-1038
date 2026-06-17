@@ -46,7 +46,7 @@ export default function Stats() {
   const [activeTab, setActiveTab] = useState('completion')
 
   const myStats = performanceStats.find((p) => p.workerId === currentUser?.id)
-  const completionRate = myStats?.completionRate ?? 0
+  const completionRate = myStats?.completionRate ? Math.round(myStats.completionRate * 100) : 0
   const avgResponse = myStats?.avgResponseMinutes ?? 0
 
   const arrivalRate = 82
@@ -104,7 +104,7 @@ function CompletionTab({ completionRate }: { completionRate: number }) {
     <div className="space-y-4">
       <div className="rounded-card bg-white p-4 shadow-sm">
         <p className="text-sm font-medium text-gray-700 mb-3">个人维保完成率</p>
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center relative">
           <ResponsiveContainer width={200} height={200}>
             <PieChart>
               <Pie
@@ -117,12 +117,12 @@ function CompletionTab({ completionRate }: { completionRate: number }) {
                 startAngle={90}
                 endAngle={-270}
               >
-                <Cell fill="#4F6EF7" />
+                <Cell fill="#1B5E8C" />
                 <Cell fill="#E5E7EB" />
               </Pie>
             </PieChart>
           </ResponsiveContainer>
-          <div className="absolute flex flex-col items-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-bold text-gray-800">{completionRate}%</span>
           </div>
         </div>
@@ -136,7 +136,7 @@ function CompletionTab({ completionRate }: { completionRate: number }) {
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
             <Tooltip />
-            <Bar dataKey="rate" fill="#4F6EF7" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="rate" fill="#1B5E8C" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -166,7 +166,7 @@ function RescueTab({ avgResponse, arrivalRate }: { avgResponse: number; arrivalR
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip />
-            <Line type="monotone" dataKey="minutes" stroke="#4F6EF7" strokeWidth={2} dot={{ r: 4 }} />
+            <Line type="monotone" dataKey="minutes" stroke="#1B5E8C" strokeWidth={2} dot={{ r: 4 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>

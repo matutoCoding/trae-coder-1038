@@ -127,7 +127,7 @@ function DispatchCard({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              navigate('/checkin')
+              navigate(`/checkin?dispatchId=${order.id}`)
             }}
             className="rounded-lg bg-primary-500 px-4 py-1.5 text-xs font-medium text-white"
           >

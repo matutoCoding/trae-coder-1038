@@ -107,7 +107,7 @@ export default function DispatchDetail() {
             )}
             {order.status === 'accepted' && (
               <button
-                onClick={() => navigate('/checkin')}
+                onClick={() => navigate(`/checkin?dispatchId=${order.id}`)}
                 className="w-full rounded-lg bg-primary-500 py-3 text-sm font-medium text-white"
               >
                 扫码打卡

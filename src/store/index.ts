@@ -28,7 +28,9 @@ import {
   notifications as mockNotifications,
 } from '@/data/mock'
 
-interface StoreState {
+const STORAGE_KEY = 'elevator-maintenance-app'
+
+interface PersistedState {
   currentUser: User | null
   elevators: Elevator[]
   contracts: MaintenanceContract[]
@@ -41,6 +43,9 @@ interface StoreState {
   users: User[]
   performanceStats: PerformanceStats[]
   notifications: Notification[]
+}
+
+interface StoreState extends PersistedState {
   activeRescueTimer: { orderId: string; startTime: number } | null
 
   login: (phone: string, password: string) => boolean
@@ -65,7 +70,26 @@ interface StoreState {
   markNotificationRead: (id: string) => void
 }
 
-export const useStore = create<StoreState>()((set) => ({
+function loadPersistedState(): PersistedState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as PersistedState
+      if (parsed.elevators && parsed.dispatchOrders) {
+        return parsed
+      }
+    }
+  } catch {}
+  return null
+}
+
+function persistState(state: PersistedState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch {}
+}
+
+const defaultState: PersistedState = {
   currentUser: null,
   elevators: mockElevators,
   contracts: mockContracts,
@@ -78,114 +102,177 @@ export const useStore = create<StoreState>()((set) => ({
   users: mockUsers,
   performanceStats: mockPerformanceStats,
   notifications: mockNotifications,
+}
+
+const initialState = loadPersistedState() ?? defaultState
+
+export const useStore = create<StoreState>()((set) => ({
+  ...initialState,
   activeRescueTimer: null,
 
   login: (phone, _password) => {
     const user = mockUsers.find((u) => u.phone === phone)
     if (user) {
-      set({ currentUser: user })
+      set((state) => {
+        const next = { ...state, currentUser: user }
+        persistState(next)
+        return { currentUser: user }
+      })
       return true
     }
     return false
   },
 
-  logout: () => set({ currentUser: null }),
+  logout: () => set((state) => {
+    const next = { ...state, currentUser: null }
+    persistState(next)
+    return { currentUser: null }
+  }),
 
   updateElevatorStatus: (id, status) =>
-    set((state) => ({
-      elevators: state.elevators.map((e) => (e.id === id ? { ...e, status } : e)),
-    })),
+    set((state) => {
+      const next = { ...state, elevators: state.elevators.map((e) => (e.id === id ? { ...e, status } : e)) }
+      persistState(next)
+      return { elevators: next.elevators }
+    }),
 
   disableElevator: (id, reason) =>
-    set((state) => ({
-      elevators: state.elevators.map((e) =>
-        e.id === id ? { ...e, status: 'disabled' as const, disabledReason: reason, disabledAt: new Date().toISOString() } : e
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        elevators: state.elevators.map((e) =>
+          e.id === id ? { ...e, status: 'disabled' as const, disabledReason: reason, disabledAt: new Date().toISOString() } : e
+        ),
+      }
+      persistState(next)
+      return { elevators: next.elevators }
+    }),
 
   enableElevator: (id) =>
-    set((state) => ({
-      elevators: state.elevators.map((e) =>
-        e.id === id ? { ...e, status: 'normal' as const, disabledReason: undefined, disabledAt: undefined } : e
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        elevators: state.elevators.map((e) =>
+          e.id === id ? { ...e, status: 'normal' as const, disabledReason: undefined, disabledAt: undefined } : e
+        ),
+      }
+      persistState(next)
+      return { elevators: next.elevators }
+    }),
 
   acceptDispatch: (id) =>
-    set((state) => ({
-      dispatchOrders: state.dispatchOrders.map((d) => (d.id === id ? { ...d, status: 'accepted' as const } : d)),
-    })),
+    set((state) => {
+      const next = { ...state, dispatchOrders: state.dispatchOrders.map((d) => (d.id === id ? { ...d, status: 'accepted' as const } : d)) }
+      persistState(next)
+      return { dispatchOrders: next.dispatchOrders }
+    }),
 
   completeDispatch: (id) =>
-    set((state) => ({
-      dispatchOrders: state.dispatchOrders.map((d) =>
-        d.id === id ? { ...d, status: 'completed' as const, completedAt: new Date().toISOString() } : d
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        dispatchOrders: state.dispatchOrders.map((d) =>
+          d.id === id ? { ...d, status: 'completed' as const, completedAt: new Date().toISOString() } : d
+        ),
+      }
+      persistState(next)
+      return { dispatchOrders: next.dispatchOrders }
+    }),
 
   updateMaintenanceItem: (dispatchId, itemId, checked, remark) =>
-    set((state) => ({
-      dispatchOrders: state.dispatchOrders.map((d) =>
-        d.id === dispatchId
-          ? {
-              ...d,
-              items: d.items.map((item) =>
-                item.id === itemId ? { ...item, checked, ...(remark !== undefined ? { remark } : {}) } : item
-              ),
-            }
-          : d
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        dispatchOrders: state.dispatchOrders.map((d) =>
+          d.id === dispatchId
+            ? {
+                ...d,
+                items: d.items.map((item) =>
+                  item.id === itemId ? { ...item, checked, ...(remark !== undefined ? { remark } : {}) } : item
+                ),
+              }
+            : d
+        ),
+      }
+      persistState(next)
+      return { dispatchOrders: next.dispatchOrders }
+    }),
 
   addCheckinRecord: (record) =>
-    set((state) => ({
-      checkinRecords: [...state.checkinRecords, record],
-    })),
+    set((state) => {
+      const next = { ...state, checkinRecords: [...state.checkinRecords, record] }
+      persistState(next)
+      return { checkinRecords: next.checkinRecords }
+    }),
 
   addPartReplacement: (checkinId, part) =>
-    set((state) => ({
-      checkinRecords: state.checkinRecords.map((cr) =>
-        cr.id === checkinId ? { ...cr, parts: [...cr.parts, part] } : cr
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        checkinRecords: state.checkinRecords.map((cr) =>
+          cr.id === checkinId ? { ...cr, parts: [...cr.parts, part] } : cr
+        ),
+      }
+      persistState(next)
+      return { checkinRecords: next.checkinRecords }
+    }),
 
   createRepairOrder: (order) =>
-    set((state) => ({
-      repairOrders: [...state.repairOrders, order],
-    })),
+    set((state) => {
+      const next = { ...state, repairOrders: [...state.repairOrders, order] }
+      persistState(next)
+      return { repairOrders: next.repairOrders }
+    }),
 
   updateRepairStatus: (id, status) =>
-    set((state) => ({
-      repairOrders: state.repairOrders.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status,
-              ...(status === 'completed' ? { completedAt: new Date().toISOString() } : {}),
-            }
-          : r
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        repairOrders: state.repairOrders.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                status,
+                ...(status === 'completed' ? { completedAt: new Date().toISOString() } : {}),
+              }
+            : r
+        ),
+      }
+      persistState(next)
+      return { repairOrders: next.repairOrders }
+    }),
 
   assignRepair: (id, assigneeId, assigneeName) =>
-    set((state) => ({
-      repairOrders: state.repairOrders.map((r) =>
-        r.id === id ? { ...r, status: 'assigned' as const, assigneeId, assigneeName } : r
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        repairOrders: state.repairOrders.map((r) =>
+          r.id === id ? { ...r, status: 'assigned' as const, assigneeId, assigneeName } : r
+        ),
+      }
+      persistState(next)
+      return { repairOrders: next.repairOrders }
+    }),
 
   updateRescueStatus: (id, status) =>
-    set((state) => ({
-      rescueOrders: state.rescueOrders.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status,
-              ...(status === 'rescued' ? { rescuedAt: new Date().toISOString() } : {}),
-              ...(status === 'closed' ? { closedAt: new Date().toISOString() } : {}),
-            }
-          : r
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        rescueOrders: state.rescueOrders.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                status,
+                ...(status === 'en_route' ? { enRouteAt: new Date().toISOString() } : {}),
+                ...(status === 'rescued' ? { rescuedAt: new Date().toISOString() } : {}),
+                ...(status === 'closed' ? { closedAt: new Date().toISOString() } : {}),
+              }
+            : r
+        ),
+      }
+      persistState(next)
+      return { rescueOrders: next.rescueOrders }
+    }),
 
   startRescueTimer: (orderId) =>
     set({ activeRescueTimer: { orderId, startTime: Date.now() } }),
@@ -193,28 +280,48 @@ export const useStore = create<StoreState>()((set) => ({
   stopRescueTimer: () => set({ activeRescueTimer: null }),
 
   arriveRescue: (id, arrivedAt) =>
-    set((state) => ({
-      rescueOrders: state.rescueOrders.map((r) =>
-        r.id === id ? { ...r, status: 'arrived' as const, arrivedAt } : r
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        rescueOrders: state.rescueOrders.map((r) =>
+          r.id === id ? { ...r, status: 'arrived' as const, arrivedAt } : r
+        ),
+      }
+      persistState(next)
+      return { rescueOrders: next.rescueOrders, activeRescueTimer: null }
+    }),
 
   addRescueRecord: (id, record) =>
-    set((state) => ({
-      rescueOrders: state.rescueOrders.map((r) =>
-        r.id === id ? { ...r, rescueRecord: record } : r
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        rescueOrders: state.rescueOrders.map((r) =>
+          r.id === id ? { ...r, rescueRecord: record } : r
+        ),
+      }
+      persistState(next)
+      return { rescueOrders: next.rescueOrders }
+    }),
 
   completeInspection: (id, result, nextDate) =>
-    set((state) => ({
-      inspections: state.inspections.map((i) =>
-        i.id === id ? { ...i, status: 'completed' as const, result, nextDate } : i
-      ),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        inspections: state.inspections.map((i) =>
+          i.id === id ? { ...i, status: 'completed' as const, result, nextDate } : i
+        ),
+      }
+      persistState(next)
+      return { inspections: next.inspections }
+    }),
 
   markNotificationRead: (id) =>
-    set((state) => ({
-      notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      }
+      persistState(next)
+      return { notifications: next.notifications }
+    }),
 }))

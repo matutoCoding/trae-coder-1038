@@ -18,8 +18,6 @@ export default function RescueList() {
   const elevators = useStore((s) => s.elevators)
   const users = useStore((s) => s.users)
   const activeRescueTimer = useStore((s) => s.activeRescueTimer)
-  const updateRescueStatus = useStore((s) => s.updateRescueStatus)
-  const startRescueTimer = useStore((s) => s.startRescueTimer)
   const [activeTab, setActiveTab] = useState('active')
 
   const filtered = rescueOrders.filter((r) => {
@@ -32,7 +30,7 @@ export default function RescueList() {
     const worker = users.find((u) => u.role === 'worker')
     if (!elevator || !worker) return
     const newOrder: RescueOrder = {
-      id: `S${Date.now()}`,
+      id: `res-${Date.now()}`,
       elevatorId: elevator.id,
       trappedFloor: Math.floor(Math.random() * elevator.floorCount) + 1,
       trappedCount: Math.floor(Math.random() * 3) + 1,
@@ -42,8 +40,11 @@ export default function RescueList() {
       assigneeName: worker.name,
       createdAt: new Date().toISOString(),
     }
-    updateRescueStatus(newOrder.id, 'dispatched')
-    startRescueTimer(newOrder.id)
+    const store = useStore.getState()
+    const nextRescueOrders = [...store.rescueOrders, newOrder]
+    useStore.setState({ rescueOrders: nextRescueOrders })
+    const persistData = { ...store, rescueOrders: nextRescueOrders }
+    try { localStorage.setItem('elevator-maintenance-app', JSON.stringify(persistData)) } catch {}
     navigate(`/rescue/${newOrder.id}`)
   }
 

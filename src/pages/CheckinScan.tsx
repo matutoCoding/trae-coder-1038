@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { QrCode, CheckCircle, MapPin, Clock } from 'lucide-react'
 import { useStore } from '@/store'
 import PageHeader from '@/components/PageHeader'
@@ -7,6 +7,9 @@ import type { CheckinRecord } from '@/types'
 
 export default function CheckinScan() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const dispatchId = searchParams.get('dispatchId')
+
   const dispatchOrders = useStore((s) => s.dispatchOrders)
   const elevators = useStore((s) => s.elevators)
   const addCheckinRecord = useStore((s) => s.addCheckinRecord)
@@ -14,22 +17,25 @@ export default function CheckinScan() {
   const [checkedIn, setCheckedIn] = useState(false)
   const [record, setRecord] = useState<CheckinRecord | null>(null)
 
-  const activeOrder = dispatchOrders.find(
-    (d) => d.status === 'accepted' || d.status === 'in_progress'
-  )
+  const activeOrder = dispatchId
+    ? dispatchOrders.find((d) => d.id === dispatchId)
+    : dispatchOrders.find((d) => d.status === 'accepted' || d.status === 'in_progress')
+
   const elevator = activeOrder
     ? elevators.find((e) => e.id === activeOrder.elevatorId)
     : undefined
 
   const handleScan = () => {
+    if (!activeOrder) return
+
     const now = new Date()
     const newRecord: CheckinRecord = {
       id: `cr-${Date.now()}`,
-      dispatchId: activeOrder?.id ?? '',
-      elevatorId: activeOrder?.elevatorId ?? '',
+      dispatchId: activeOrder.id,
+      elevatorId: activeOrder.elevatorId,
       checkinTime: now.toISOString(),
       checkinLocation: '杭州市西湖区文三路268号',
-      items: activeOrder?.items ?? [],
+      items: activeOrder.items ?? [],
       parts: [],
     }
     addCheckinRecord(newRecord)
@@ -63,11 +69,16 @@ export default function CheckinScan() {
           <>
             <button
               onClick={handleScan}
-              className="mt-20 flex h-40 w-40 items-center justify-center rounded-full bg-primary-500 shadow-lg active:scale-95 transition-transform"
+              disabled={!activeOrder}
+              className={`mt-20 flex h-40 w-40 items-center justify-center rounded-full shadow-lg active:scale-95 transition-transform ${
+                activeOrder ? 'bg-primary-500' : 'bg-gray-300 cursor-not-allowed'
+              }`}
             >
               <QrCode size={64} className="text-white" />
             </button>
-            <p className="mt-4 text-sm text-gray-500">点击扫码签到</p>
+            <p className="mt-4 text-sm text-gray-500">
+              {activeOrder ? '点击扫码签到' : '暂无进行中的工单'}
+            </p>
           </>
         )}
 
@@ -75,6 +86,7 @@ export default function CheckinScan() {
           <div className="mt-10 w-full rounded-card bg-white p-4 shadow-sm">
             <p className="text-sm font-semibold text-gray-800">当前任务</p>
             <div className="mt-2 space-y-1 text-xs text-gray-500">
+              <p>工单号：{activeOrder.id}</p>
               <p>电梯编号：{elevator.code}</p>
               <p>地址：{elevator.address}</p>
             </div>

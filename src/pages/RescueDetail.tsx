@@ -11,7 +11,7 @@ export default function RescueDetail() {
   const activeRescueTimer = useStore((s) => s.activeRescueTimer)
   const updateRescueStatus = useStore((s) => s.updateRescueStatus)
   const arriveRescue = useStore((s) => s.arriveRescue)
-  const stopRescueTimer = useStore((s) => s.stopRescueTimer)
+  const startRescueTimer = useStore((s) => s.startRescueTimer)
 
   const order = rescueOrders.find((r) => r.id === id)
   const elevator = elevators.find((e) => e.id === order?.elevatorId)
@@ -26,13 +26,23 @@ export default function RescueDetail() {
 
   const isActive = ['dispatched', 'en_route', 'arrived'].includes(order.status)
   const isArrived = ['arrived', 'rescued', 'closed'].includes(order.status)
-  const timerActive = activeRescueTimer?.orderId === order.id
+  const isEnRoute = order.status === 'en_route'
+  const timerRunning = activeRescueTimer?.orderId === order.id && !isArrived
 
   const formatDuration = (start: string, end: string) => {
     const diff = new Date(end).getTime() - new Date(start).getTime()
     const minutes = Math.floor(diff / 60000)
     const seconds = Math.floor((diff % 60000) / 1000)
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
+  const handleDepart = () => {
+    updateRescueStatus(order.id, 'en_route')
+    startRescueTimer(order.id)
+  }
+
+  const handleArrive = () => {
+    arriveRescue(order.id, new Date().toISOString())
   }
 
   return (
@@ -75,10 +85,21 @@ export default function RescueDetail() {
         <div className="rounded-card bg-white p-4 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold text-gray-800">应急到场计时</h3>
           <div className="text-center py-3">
-            {timerActive && activeRescueTimer && (
-              <Timer startTime={activeRescueTimer.startTime} isDanger />
+            {timerRunning && activeRescueTimer && (
+              <div>
+                <Timer startTime={activeRescueTimer.startTime} isDanger />
+                <p className="mt-1 text-xs text-danger-400">正在赶往现场...</p>
+              </div>
             )}
-            {isArrived && order.arrivedAt && order.createdAt && (
+            {isArrived && order.arrivedAt && order.enRouteAt && (
+              <div>
+                <span className="text-2xl font-mono font-bold text-gray-900">
+                  {formatDuration(order.enRouteAt, order.arrivedAt)}
+                </span>
+                <p className="mt-1 text-xs text-gray-400">到场用时（出发→到场）</p>
+              </div>
+            )}
+            {isArrived && order.arrivedAt && !order.enRouteAt && order.createdAt && (
               <div>
                 <span className="text-2xl font-mono font-bold text-gray-900">
                   {formatDuration(order.createdAt, order.arrivedAt)}
@@ -86,39 +107,25 @@ export default function RescueDetail() {
                 <p className="mt-1 text-xs text-gray-400">到场用时</p>
               </div>
             )}
-            {!timerActive && !isArrived && (
+            {order.status === 'dispatched' && (
               <span className="text-sm text-gray-400">等待出发</span>
             )}
           </div>
-          {(order.status === 'dispatched' || order.status === 'en_route') && !isArrived && (
-            <button
-              onClick={() => {
-                arriveRescue(order.id, new Date().toISOString())
-                stopRescueTimer()
-              }}
-              className="w-full rounded-lg bg-danger-500 py-2.5 text-sm font-medium text-white"
-            >
-              到场打卡
-            </button>
-          )}
         </div>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 max-w-lg mx-auto">
         {order.status === 'dispatched' && (
           <button
-            onClick={() => updateRescueStatus(order.id, 'en_route')}
+            onClick={handleDepart}
             className="w-full rounded-lg bg-danger-500 py-3 text-sm font-medium text-white"
           >
             出发
           </button>
         )}
-        {order.status === 'en_route' && (
+        {isEnRoute && (
           <button
-            onClick={() => {
-              arriveRescue(order.id, new Date().toISOString())
-              stopRescueTimer()
-            }}
+            onClick={handleArrive}
             className="w-full rounded-lg bg-danger-500 py-3 text-sm font-medium text-white"
           >
             到场

@@ -108,6 +108,7 @@ export interface RescueOrder {
   assigneeId: string
   assigneeName: string
   createdAt: string
+  enRouteAt?: string
   arrivedAt?: string
   rescuedAt?: string
   closedAt?: string
