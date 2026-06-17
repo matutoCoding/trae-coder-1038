@@ -1,0 +1,82 @@
+/** @type {import('tailwindcss').Config} */
+
+export default {
+  darkMode: "class",
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    container: {
+      center: true,
+    },
+    extend: {
+      colors: {
+        primary: {
+          50: '#E8F0F7',
+          100: '#D1E1EF',
+          200: '#A3C3DF',
+          300: '#75A5CF',
+          400: '#4787BF',
+          500: '#1B5E8C',
+          600: '#164B70',
+          700: '#113855',
+          800: '#0C2539',
+          900: '#06121E',
+        },
+        safety: {
+          50: '#FEF3E8',
+          100: '#FDE7D1',
+          200: '#FBCFA3',
+          300: '#F9B775',
+          400: '#F79F47',
+          500: '#E8721C',
+          600: '#B95B16',
+          700: '#8A4410',
+          800: '#5B2D0A',
+          900: '#2C1605',
+        },
+        success: {
+          50: '#E8F5ED',
+          100: '#D1EBDB',
+          200: '#A3D7B7',
+          300: '#75C393',
+          400: '#47AF6F',
+          500: '#2E9E5A',
+          600: '#257E48',
+          700: '#1C5F36',
+          800: '#133F24',
+          900: '#0A2012',
+        },
+        danger: {
+          50: '#FBE9EB',
+          100: '#F7D3D7',
+          200: '#EFA7AF',
+          300: '#E77B87',
+          400: '#DF4F5F',
+          500: '#D94452',
+          600: '#AE3642',
+          700: '#832932',
+          800: '#581B21',
+          900: '#2D0E11',
+        },
+        surface: {
+          50: '#F5F6FA',
+          100: '#EBEDF3',
+          200: '#D7DBE7',
+          300: '#C3C9DB',
+          400: '#AFB7CF',
+          500: '#6B7280',
+          600: '#555B66',
+          700: '#3F434D',
+          800: '#2A2D33',
+          900: '#15171A',
+        },
+      },
+      fontFamily: {
+        sans: ['"Noto Sans SC"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+      },
+      borderRadius: {
+        'card': '8px',
+      },
+    },
+  },
+  plugins: [],
+};
