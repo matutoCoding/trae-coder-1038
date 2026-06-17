@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   PieChart,
   Pie,
@@ -41,12 +42,13 @@ const monthlyResponseData = [
 ]
 
 export default function Stats() {
+  const navigate = useNavigate()
   const performanceStats = useStore((s) => s.performanceStats)
   const currentUser = useStore((s) => s.currentUser)
   const [activeTab, setActiveTab] = useState('completion')
 
   const myStats = performanceStats.find((p) => p.workerId === currentUser?.id)
-  const completionRate = myStats?.completionRate ? Math.round(myStats.completionRate * 100) : 0
+  const completionRate = myStats?.completionRate ? (myStats.completionRate * 100).toFixed(1) : '0'
   const avgResponse = myStats?.avgResponseMinutes ?? 0
 
   const arrivalRate = 82
@@ -86,7 +88,7 @@ export default function Stats() {
             <RescueTab avgResponse={avgResponse} arrivalRate={arrivalRate} />
           )}
           {activeTab === 'workload' && (
-            <WorkloadTab rankings={sortedByWorkload} currentUserId={currentUser?.id ?? ''} />
+            <WorkloadTab rankings={sortedByWorkload} currentUserId={currentUser?.id ?? ''} onRowClick={(id) => navigate(`/stats/${id}`)} />
           )}
         </div>
       </div>
@@ -94,10 +96,11 @@ export default function Stats() {
   )
 }
 
-function CompletionTab({ completionRate }: { completionRate: number }) {
+function CompletionTab({ completionRate }: { completionRate: string | number }) {
+  const rate = Number(completionRate)
   const pieData = [
-    { name: '已完成', value: completionRate },
-    { name: '未完成', value: 100 - completionRate },
+    { name: '已完成', value: rate },
+    { name: '未完成', value: 100 - rate },
   ]
 
   return (
@@ -123,7 +126,7 @@ function CompletionTab({ completionRate }: { completionRate: number }) {
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-gray-800">{completionRate}%</span>
+            <span className="text-2xl font-bold text-gray-800">{rate}%</span>
           </div>
         </div>
       </div>
@@ -174,17 +177,23 @@ function RescueTab({ avgResponse, arrivalRate }: { avgResponse: number; arrivalR
   )
 }
 
-function WorkloadTab({ rankings, currentUserId }: { rankings: { workerId: string; workerName: string; monthlyCompleted: number; monthlyTotal: number }[]; currentUserId: string }) {
+function WorkloadTab({ rankings, currentUserId, onRowClick }: { rankings: { workerId: string; workerName: string; monthlyCompleted: number; monthlyTotal: number; completionRate?: number }[]; currentUserId: string; onRowClick?: (id: string) => void }) {
   const medals = ['🥇', '🥈', '🥉']
 
   return (
     <div className="rounded-card bg-white shadow-sm divide-y divide-gray-100">
       {rankings.map((item, idx) => {
         const isMe = item.workerId === currentUserId
+        const rate = item.completionRate !== undefined
+          ? (item.completionRate * 100).toFixed(1)
+          : item.monthlyTotal > 0
+          ? ((item.monthlyCompleted / item.monthlyTotal) * 100).toFixed(1)
+          : '0'
         return (
-          <div
+          <button
             key={item.workerId}
-            className={`flex items-center justify-between px-4 py-3 ${isMe ? 'bg-primary-50' : ''}`}
+            onClick={() => onRowClick?.(item.workerId)}
+            className={`w-full flex items-center justify-between px-4 py-3 ${isMe ? 'bg-primary-50' : ''} hover:bg-gray-50`}
           >
             <div className="flex items-center gap-3">
               <span className="w-6 text-center text-sm">
@@ -197,10 +206,13 @@ function WorkloadTab({ rankings, currentUserId }: { rankings: { workerId: string
                 <span className="rounded bg-primary-100 px-1.5 py-0.5 text-xs text-primary-600">我</span>
               )}
             </div>
-            <div className="text-xs text-gray-500">
-              <span className="font-medium text-gray-700">{item.monthlyCompleted}</span>/{item.monthlyTotal}
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <p className="text-xs text-gray-700 font-medium">{item.monthlyCompleted}/{item.monthlyTotal}</p>
+                <p className="text-[10px] text-gray-400">{rate}%</p>
+              </div>
             </div>
-          </div>
+          </button>
         )
       })}
     </div>

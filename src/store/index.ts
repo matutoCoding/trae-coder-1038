@@ -169,33 +169,45 @@ export const useStore = create<StoreState>()((set) => ({
 
   completeDispatch: (id) =>
     set((state) => {
+      const now = new Date().toISOString()
       const next = {
         ...state,
         dispatchOrders: state.dispatchOrders.map((d) =>
-          d.id === id ? { ...d, status: 'completed' as const, completedAt: new Date().toISOString() } : d
+          d.id === id ? { ...d, status: 'completed' as const, completedAt: now } : d
+        ),
+        checkinRecords: state.checkinRecords.map((cr) =>
+          cr.dispatchId === id ? { ...cr, checkoutTime: now, items: (state.dispatchOrders.find((d) => d.id === id)?.items ?? cr.items) } : cr
         ),
       }
       persistState(next)
-      return { dispatchOrders: next.dispatchOrders }
+      return { dispatchOrders: next.dispatchOrders, checkinRecords: next.checkinRecords }
     }),
 
   updateMaintenanceItem: (dispatchId, itemId, checked, remark) =>
     set((state) => {
-      const next = {
-        ...state,
-        dispatchOrders: state.dispatchOrders.map((d) =>
-          d.id === dispatchId
-            ? {
-                ...d,
-                items: d.items.map((item) =>
-                  item.id === itemId ? { ...item, checked, ...(remark !== undefined ? { remark } : {}) } : item
-                ),
-              }
-            : d
-        ),
-      }
+      const nextDispatchOrders = state.dispatchOrders.map((d) =>
+        d.id === dispatchId
+          ? {
+              ...d,
+              items: d.items.map((item) =>
+                item.id === itemId ? { ...item, checked, ...(remark !== undefined ? { remark } : {}) } : item
+              ),
+            }
+          : d
+      )
+      const nextCheckinRecords = state.checkinRecords.map((cr) =>
+        cr.dispatchId === dispatchId
+          ? {
+              ...cr,
+              items: cr.items.map((item) =>
+                item.id === itemId ? { ...item, checked, ...(remark !== undefined ? { remark } : {}) } : item
+              ),
+            }
+          : cr
+      )
+      const next = { ...state, dispatchOrders: nextDispatchOrders, checkinRecords: nextCheckinRecords }
       persistState(next)
-      return { dispatchOrders: next.dispatchOrders }
+      return { dispatchOrders: next.dispatchOrders, checkinRecords: next.checkinRecords }
     }),
 
   addCheckinRecord: (record) =>

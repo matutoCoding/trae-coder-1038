@@ -21,6 +21,7 @@ import RescueRecord from "@/pages/RescueRecord";
 import InspectionList from "@/pages/InspectionList";
 import InspectionNew from "@/pages/InspectionNew";
 import Stats from "@/pages/Stats";
+import StatsDetail from "@/pages/StatsDetail";
 import Profile from "@/pages/Profile";
 import Notifications from "@/pages/Notifications";
 
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/inspection" element={<InspectionList />} />
           <Route path="/inspection/new" element={<InspectionNew />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/stats/:workerId" element={<StatsDetail />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />
         </Route>
